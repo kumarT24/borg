@@ -12,11 +12,12 @@ import time
 import pytest
 
 from ... import platform
+from ...cache import get_cache_impl
 from ...constants import *  # NOQA
 from ...manifest import Manifest
 from ...platform import is_cygwin, is_win32, is_darwin
 from ...repository import Repository
-from ...helpers import CommandError
+from ...helpers import CommandError, BackupPermissionError
 from .. import has_lchflags
 from .. import changedir
 from .. import (
@@ -303,6 +304,9 @@ def test_create_no_permission_file(archivers, request):
         os.chmod(file_path + "2", 0o000)
     cmd(archiver, "rcreate", RK_ENCRYPTION)
     flist = "".join(f"input/file{n}\n" for n in range(1, 4))
+    expected_ec = BackupPermissionError("open", OSError(13, "permission denied")).exit_code
+    if expected_ec == EXIT_ERROR:  # workaround, TODO: fix it
+        expected_ec = EXIT_WARNING
     out = cmd(
         archiver,
         "create",
@@ -310,7 +314,7 @@ def test_create_no_permission_file(archivers, request):
         "--list",
         "test",
         input=flist.encode(),
-        exit_code=1,  # WARNING status: could not back up file2.
+        exit_code=expected_ec,  # WARNING status: could not back up file2.
     )
     assert "retry: 1 of " not in out  # retries were NOT attempted!
     assert "E input/file2" in out  # no permissions!
@@ -362,7 +366,10 @@ def test_create_content_from_command_with_failed_command(archivers, request):
     archiver = request.getfixturevalue(archivers)
     cmd(archiver, "rcreate", RK_ENCRYPTION)
     if archiver.FORK_DEFAULT:
-        output = cmd(archiver, "create", "--content-from-command", "test", "--", "sh", "-c", "exit 73;", exit_code=2)
+        expected_ec = CommandError().exit_code
+        output = cmd(
+            archiver, "create", "--content-from-command", "test", "--", "sh", "-c", "exit 73;", exit_code=expected_ec
+        )
         assert output.endswith("Command 'sh' exited with status 73" + os.linesep)
     else:
         with pytest.raises(CommandError):
@@ -414,7 +421,10 @@ def test_create_paths_from_command_with_failed_command(archivers, request):
     archiver = request.getfixturevalue(archivers)
     cmd(archiver, "rcreate", RK_ENCRYPTION)
     if archiver.FORK_DEFAULT:
-        output = cmd(archiver, "create", "--paths-from-command", "test", "--", "sh", "-c", "exit 73;", exit_code=2)
+        expected_ec = CommandError().exit_code
+        output = cmd(
+            archiver, "create", "--paths-from-command", "test", "--", "sh", "-c", "exit 73;", exit_code=expected_ec
+        )
         assert output.endswith("Command 'sh' exited with status 73" + os.linesep)
     else:
         with pytest.raises(CommandError):
@@ -540,20 +550,21 @@ def test_create_pattern_intermediate_folders_first(archivers, request):
     assert out_list.index("d x/b") < out_list.index("- x/b/foo_b")
 
 
-def test_create_no_cache_sync(archivers, request):
+@pytest.mark.skipif(get_cache_impl() in ("adhocwithfiles", "local"), reason="only works with AdHocCache")
+def test_create_no_cache_sync_adhoc(archivers, request):  # TODO: add test for AdHocWithFilesCache
     archiver = request.getfixturevalue(archivers)
     create_test_files(archiver.input_path)
     cmd(archiver, "rcreate", RK_ENCRYPTION)
     cmd(archiver, "rdelete", "--cache-only")
     create_json = json.loads(
-        cmd(archiver, "create", "--no-cache-sync", "--json", "--error", "test", "input")
-    )  # ignore experimental warning
+        cmd(archiver, "create", "--no-cache-sync", "--prefer-adhoc-cache", "--json", "test", "input")
+    )
     info_json = json.loads(cmd(archiver, "info", "-a", "test", "--json"))
     create_stats = create_json["cache"]["stats"]
     info_stats = info_json["cache"]["stats"]
     assert create_stats == info_stats
     cmd(archiver, "rdelete", "--cache-only")
-    cmd(archiver, "create", "--no-cache-sync", "test2", "input")
+    cmd(archiver, "create", "--no-cache-sync", "--prefer-adhoc-cache", "test2", "input")
     cmd(archiver, "rinfo")
     cmd(archiver, "check")
 

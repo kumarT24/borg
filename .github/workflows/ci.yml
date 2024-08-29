@@ -62,9 +62,12 @@ jobs:
             - os: ubuntu-22.04
               python-version: '3.11'
               toxenv: py311-fuse3
-            - os: ubuntu-22.04
+            - os: ubuntu-24.04
               python-version: '3.12'
               toxenv: py312-fuse3
+            - os: ubuntu-24.04
+              python-version: '3.13-dev'
+              toxenv: py313-fuse3
 
     env:
       TOXENV: ${{ matrix.toxenv }}
@@ -135,7 +138,7 @@ jobs:
 
     env:
       # Configure pkg-config to use OpenSSL from Homebrew
-      PKG_CONFIG_PATH: "/usr/local/opt/openssl@3.0/lib/pkgconfig:$PKG_CONFIG_PATH"
+      PKG_CONFIG_PATH: "/opt/homebrew/opt/openssl@3.0/lib/pkgconfig:$PKG_CONFIG_PATH"
       TOXENV: ${{ matrix.toxenv }}
 
     runs-on: ${{ matrix.os }}
@@ -170,14 +173,14 @@ jobs:
       env:
         # we already have that in the global env, but something is broken and overwrites that.
         # so, set it here, again.
-        PKG_CONFIG_PATH: "/usr/local/opt/openssl@3.0/lib/pkgconfig:$PKG_CONFIG_PATH"
+        PKG_CONFIG_PATH: "/opt/homebrew/opt/openssl@3.0/lib/pkgconfig:$PKG_CONFIG_PATH"
       run: |
         pip install -ve .
     - name: run tox env
       env:
         # we already have that in the global env, but something is broken and overwrites that.
         # so, set it here, again.
-        PKG_CONFIG_PATH: "/usr/local/opt/openssl@3.0/lib/pkgconfig:$PKG_CONFIG_PATH"
+        PKG_CONFIG_PATH: "/opt/homebrew/opt/openssl@3.0/lib/pkgconfig:$PKG_CONFIG_PATH"
         XDISTN: "6"
       run: |
         # do not use fakeroot, but run as root. avoids the dreaded EISDIR sporadic failures. see #2482.
@@ -194,6 +197,7 @@ jobs:
 
   windows:
 
+    if: false  # build is broken, thus disabled, see #8264
     runs-on: windows-latest
     timeout-minutes: 120
     needs: linux

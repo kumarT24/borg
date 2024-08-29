@@ -38,7 +38,8 @@ General:
         When set, use the value to answer the "display the passphrase for verification" question when defining a new passphrase for encrypted repositories.
     BORG_EXIT_CODES
         When set to "modern", the borg process will return more specific exit codes (rc).
-        Default is "legacy" and returns rc 2 for all errors, 1 for all warnings, 0 for success.
+        When set to "legacy", the borg process will return rc 2 for all errors, 1 for all warnings, 0 for success.
+        Default is "modern".
     BORG_HOST_ID
         Borg usually computes a host id from the FQDN plus the results of ``uuid.getnode()`` (which usually returns
         a unique id based on the MAC address of the network interface. Except if that MAC happens to be all-zero - in
@@ -67,6 +68,9 @@ General:
         When set to a numeric value, this determines the maximum "time to live" for the files cache
         entries (default: 20). The files cache is used to determine quickly whether a file is unchanged.
         The FAQ explains this more detailed in: :ref:`always_chunking`
+    BORG_USE_CHUNKS_ARCHIVE
+        When set to no (default: yes), the ``chunks.archive.d`` folder will not be used. This reduces
+        disk space usage but slows down cache resyncs.
     BORG_SHOW_SYSINFO
         When set to no (default: yes), system information (like OS, Python version, ...) in
         exceptions is not shown.
@@ -81,6 +85,18 @@ General:
         - ``pyfuse3``: only try to load pyfuse3
         - ``llfuse``: only try to load llfuse
         - ``none``: do not try to load an implementation
+    BORG_CACHE_IMPL
+        Choose the implementation for the clientside cache, choose one of:
+
+        - ``local``: uses a persistent chunks cache and keeps it in a perfect state (precise refcounts and
+          sizes), requiring a potentially resource expensive cache sync in multi-client scenarios.
+          Also has a persistent files cache.
+        - ``adhoc``: builds a non-persistent chunks cache by querying the repo. Chunks cache contents
+          are somewhat sloppy for already existing chunks, concerning their refcount ("infinite") and
+          size (0). No files cache (slow, will chunk all input files). DEPRECATED.
+        - ``adhocwithfiles``: Like ``adhoc``, but with a persistent files cache. Default implementation.
+        - ``cli``: Determine the cache implementation from cli options. Without special options, will
+          usually end up with the ``local`` implementation.
     BORG_SELFTEST
         This can be used to influence borg's builtin self-tests. The default is to execute the tests
         at the beginning of each borg command invocation.

@@ -5,7 +5,6 @@ from ._common import with_repository
 from ..cache import Cache, assert_secure
 from ..constants import *  # NOQA
 from ..helpers import Error, CommandError
-from ..helpers import Location
 from ..helpers import parse_file_size, hex_to_bin
 from ..manifest import Manifest
 
@@ -52,11 +51,8 @@ class ConfigMixIn:
         def cache_validate(section, name, value=None, check_value=True):
             if section not in ["cache"]:
                 raise ValueError("Invalid section")
-            if name in ["previous_location"]:
-                if check_value:
-                    Location(value)
-            else:
-                raise ValueError("Invalid name")
+            # currently, we do not support setting anything in the cache via borg config.
+            raise ValueError("Invalid name")
 
         def list_config(config):
             default_values = {
@@ -146,7 +142,7 @@ class ConfigMixIn:
         For security reasons, this command only works on local repositories.
 
         To delete a config value entirely, use ``--delete``. To list the values
-        of the configuration file or the default values, use ``--list``.  To get and existing
+        of the configuration file or the default values, use ``--list``.  To get an existing
         key, pass only the key name. To set a key, pass both the key name and
         the new value. Keys can be specified in the format "section.name" or
         simply "name"; the section will default to "repository" and "cache" for
